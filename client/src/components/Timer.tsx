@@ -67,10 +67,31 @@ export default function Timer() {
     }
     setIsRunning(true);
     setStartTime(new Date());
+    setTime(0); // Reset timer when starting new session
+  };
+
+  const handlePause = () => {
+    setIsRunning(false);
   };
 
   const handleStop = async () => {
-    if (!startTime || !selectedProject) return;
+    if (!startTime || !selectedProject) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No active time tracking session",
+      });
+      return;
+    }
+    
+    if (time < 60) { // Minimum 1 minute
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Time entry must be at least 1 minute long",
+      });
+      return;
+    }
     
     setIsRunning(false);
     const endTime = new Date();
@@ -82,8 +103,14 @@ export default function Timer() {
         endTime,
       });
       
+      toast({
+        title: "Success",
+        description: `Tracked ${formatTime(time)} for ${projects?.find(p => p.id.toString() === selectedProject)?.name}`,
+      });
+      
       setTime(0);
       setStartTime(null);
+      setSelectedProject("");
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -122,18 +149,32 @@ export default function Timer() {
           </div>
 
           <div className="flex justify-center space-x-2">
-            <Button
-              onClick={() => setIsRunning(!isRunning)}
-              disabled={!selectedProject || time === 0}
-            >
-              {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            </Button>
+            {!isRunning ? (
+              <Button
+                onClick={handleStart}
+                disabled={!selectedProject}
+                className="w-24"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Start
+              </Button>
+            ) : (
+              <Button
+                onClick={handlePause}
+                className="w-24"
+              >
+                <Pause className="h-4 w-4 mr-2" />
+                Pause
+              </Button>
+            )}
             <Button
               variant="destructive"
               onClick={handleStop}
-              disabled={!isRunning}
+              disabled={!startTime || time < 60}
+              className="w-24"
             >
-              <StopCircle className="h-4 w-4" />
+              <StopCircle className="h-4 w-4 mr-2" />
+              Stop
             </Button>
           </div>
         </div>
