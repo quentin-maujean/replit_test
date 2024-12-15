@@ -93,28 +93,35 @@ export default function Timer() {
       return;
     }
     
+    // Stop the timer first
     setIsRunning(false);
     const endTime = new Date();
     
     try {
+      // Save the time entry
       await createTimeEntry.mutateAsync({
         projectId: parseInt(selectedProject),
         startTime,
         endTime,
+        description: `Time tracked for ${projects?.find(p => p.id.toString() === selectedProject)?.name}`,
       });
       
+      // Show success message
       toast({
-        title: "Success",
+        title: "Time entry saved",
         description: `Tracked ${formatTime(time)} for ${projects?.find(p => p.id.toString() === selectedProject)?.name}`,
       });
       
+      // Reset the timer state
       setTime(0);
       setStartTime(null);
       setSelectedProject("");
     } catch (error: any) {
+      // If there's an error, keep the timer running
+      setIsRunning(true);
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Error saving time entry",
         description: error.message,
       });
     }
@@ -152,7 +159,7 @@ export default function Timer() {
             {!isRunning ? (
               <Button
                 onClick={handleStart}
-                disabled={!selectedProject}
+                disabled={!selectedProject || createTimeEntry.isPending}
                 className="w-24"
               >
                 <Play className="h-4 w-4 mr-2" />
@@ -161,6 +168,7 @@ export default function Timer() {
             ) : (
               <Button
                 onClick={handlePause}
+                disabled={createTimeEntry.isPending}
                 className="w-24"
               >
                 <Pause className="h-4 w-4 mr-2" />
@@ -170,11 +178,20 @@ export default function Timer() {
             <Button
               variant="destructive"
               onClick={handleStop}
-              disabled={!startTime || time < 60}
+              disabled={!startTime || time < 60 || createTimeEntry.isPending}
               className="w-24"
             >
-              <StopCircle className="h-4 w-4 mr-2" />
-              Stop
+              {createTimeEntry.isPending ? (
+                <div className="flex items-center space-x-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <span>Saving</span>
+                </div>
+              ) : (
+                <>
+                  <StopCircle className="h-4 w-4 mr-2" />
+                  Stop
+                </>
+              )}
             </Button>
           </div>
         </div>
