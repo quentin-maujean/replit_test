@@ -8,6 +8,7 @@ import { promisify } from "util";
 import { users, insertUserSchema, type User as SelectUser } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
+import { ssoModule } from "./sso";
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -31,7 +32,7 @@ const crypto = {
 // extend express user object with our schema
 declare global {
   namespace Express {
-    interface User extends SelectUser { }
+    interface User extends SelectUser {}
   }
 }
 
@@ -104,7 +105,10 @@ export function setupAuth(app: Express) {
       if (!result.success) {
         return res
           .status(400)
-          .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
+          .send(
+            "Invalid input: " +
+              result.error.issues.map((i) => i.message).join(", ")
+          );
       }
 
       const { username, password } = result.data;
@@ -152,7 +156,10 @@ export function setupAuth(app: Express) {
     if (!result.success) {
       return res
         .status(400)
-        .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
+        .send(
+          "Invalid input: " +
+            result.error.issues.map((i) => i.message).join(", ")
+        );
     }
 
     const cb = (err: any, user: Express.User, info: IVerifyOptions) => {
@@ -165,6 +172,40 @@ export function setupAuth(app: Express) {
       }
 
       req.logIn(user, (err) => {
+        if (err) {
+          return next(err);
+        }
+
+        return res.json({
+          message: "Login successful",
+          user: { id: user.id, username: user.username },
+        });
+      });
+    };
+    passport.authenticate("local", cb)(req, res, next);
+  });
+
+  app.post("/api/login_with_sso", (req, res, next) => {
+    const result = insertUserSchema.safeParse(req.body);
+    if (!result.success) {
+      return res
+        .status(400)
+        .send(
+          "Invalid input: " +
+            result.error.issues.map((i) => i.message).join(", ")
+        );
+    }
+
+    const cb = (err: any, user: Express.User, info: IVerifyOptions) => {
+      if (err) {
+        return next(err);
+      }
+
+      if (!user) {
+        return res.status(400).send(info.message ?? "Sso login failed");
+      }
+
+      ssoModule.logIn(user, (err) => {
         if (err) {
           return next(err);
         }
